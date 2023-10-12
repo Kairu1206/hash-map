@@ -122,6 +122,7 @@ public class QuadraticProbingHashMap<K, V> {
      * @param key the key
      * @param value the value
      * @param map the map
+     * @return data
      */
     private V quadProbing(K key, V value, QuadraticProbingMapEntry<K, V>[] map) {
         int hv = Math.abs(key.hashCode() % map.length);
@@ -145,10 +146,7 @@ public class QuadraticProbingHashMap<K, V> {
                 map[index].setRemoved(false);
                 return null;
             }
-
-
-                //not removed - replace
-                //removed - record, hit null -stop-
+            
         }
         if (firstRemoved != -1) {
             map[firstRemoved].setKey(key);
