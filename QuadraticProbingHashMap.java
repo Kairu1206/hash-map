@@ -1,13 +1,16 @@
 import java.util.List;
 import java.util.Set;
+import java.util.NoSuchElementException;
+import java.util.HashSet;
+import java.util.ArrayList;
 
 /**
  * Your implementation of a QuadraticProbingHashMap.
  *
- * @author YOUR NAME HERE
+ * @author Quang Nguyen
  * @version 1.0
- * @userid YOUR USER ID HERE (i.e. gburdell3)
- * @GTID YOUR GT ID HERE (i.e. 900000000)
+ * @userid qnguyen305
+ * @GTID 903770019
  *
  * Collaborators: LIST ALL COLLABORATORS YOU WORKED WITH HERE
  *
@@ -42,7 +45,8 @@ public class QuadraticProbingHashMap<K, V> {
      * Use constructor chaining.
      */
     public QuadraticProbingHashMap() {
-
+        this.table = (QuadraticProbingMapEntry<K, V>[]) new QuadraticProbingMapEntry[INITIAL_CAPACITY];
+        this.size = 0;
     }
 
     /**
@@ -55,7 +59,8 @@ public class QuadraticProbingHashMap<K, V> {
      * @param initialCapacity the initial capacity of the backing array
      */
     public QuadraticProbingHashMap(int initialCapacity) {
-
+        this.table = (QuadraticProbingMapEntry<K, V>[]) new QuadraticProbingMapEntry[initialCapacity];
+        this.size = 0;
     }
 
     /**
@@ -94,7 +99,81 @@ public class QuadraticProbingHashMap<K, V> {
      * @throws java.lang.IllegalArgumentException if key or value is null
      */
     public V put(K key, V value) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        if (value == null) {
+            throw new IllegalArgumentException("value is null");
+        }
 
+
+        this.size++;
+        if (1.0 * size / table.length > MAX_LOAD_FACTOR) {
+            resizeBackingTable(2 * table.length + 1);
+            return null;
+        }
+
+        return quadProbing(key, value, table);
+    }
+
+    /**
+     * Quad Probing 1 value into the map
+     *
+     * @param key the key
+     * @param value the value
+     * @param map the map
+     */
+    private V quadProbing(K key, V value, QuadraticProbingMapEntry<K, V>[] map) {
+        int hv = Math.abs(key.hashCode() % map.length);
+        int firstRemoved = -1;
+        for (int i = 0; i < map.length; i++) {
+            int index = (hv + i * i) % map.length;
+            if (map[index] != null) {
+                if (map[index].isRemoved() && firstRemoved == -1) {
+                    firstRemoved = index;
+                } else if (!map[index].isRemoved() && map[index].getKey().equals(key)) {
+                    V data = map[index].getValue();
+                    map[index].setValue(value);
+                    return data;
+                } else if (map[index].isRemoved() && map[index].getKey().equals(key)) {
+                    break;
+                }
+
+            } else {
+                QuadraticProbingMapEntry<K, V> newEntry = new QuadraticProbingMapEntry<>(key, value);
+                map[index] = newEntry;
+                map[index].setRemoved(false);
+                return null;
+            }
+
+
+                //not removed - replace
+                //removed - record, hit null -stop-
+        }
+        if (firstRemoved != -1) {
+            map[firstRemoved].setKey(key);
+            map[firstRemoved].setValue(value);
+            map[firstRemoved].setRemoved(false);
+            return null;
+        }
+        resizeBackingTable(2 * map.length + 1);
+        return null;
+    }
+
+    /**
+     * Find the index where the key is
+     * @param key the key
+     * @return the index where the key is
+     */
+    private int findKeyIndex(K key) {
+        int hv = Math.abs(key.hashCode() % table.length);
+        for (int i = 0; i < table.length; i++) {
+            int index = (hv + i * i) % table.length;
+            if (table[index] != null && table[index].getKey().equals(key) && !table[index].isRemoved()) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -107,7 +186,17 @@ public class QuadraticProbingHashMap<K, V> {
      * @throws java.util.NoSuchElementException if the key is not in the map
      */
     public V remove(K key) {
-
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        if (!containsKey(key)) {
+            throw new NoSuchElementException("key is not in the map");
+        }
+        int index = findKeyIndex(key);
+        V data = table[index].getValue();
+        table[index].setRemoved(true);
+        this.size--;
+        return data;
     }
 
     /**
@@ -119,7 +208,13 @@ public class QuadraticProbingHashMap<K, V> {
      * @throws java.util.NoSuchElementException if the key is not in the map
      */
     public V get(K key) {
-
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        if (!containsKey(key)) {
+            throw new NoSuchElementException("key is not in the map");
+        }
+        return table[findKeyIndex(key)].getValue();
     }
 
     /**
@@ -131,7 +226,10 @@ public class QuadraticProbingHashMap<K, V> {
      * @throws java.lang.IllegalArgumentException if key is null
      */
     public boolean containsKey(K key) {
-
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        return findKeyIndex(key) > -1;
     }
 
     /**
@@ -142,7 +240,14 @@ public class QuadraticProbingHashMap<K, V> {
      * @return the set of keys in this map
      */
     public Set<K> keySet() {
+        Set<K> s = new HashSet<>();
+        for (int i = 0; i < table.length; i++) {
+            if (table[i] != null && !table[i].isRemoved()) {
+                s.add(table[i].getKey());
+            }
+        }
 
+        return s;
     }
 
     /**
@@ -156,7 +261,14 @@ public class QuadraticProbingHashMap<K, V> {
      * @return list of values in this map
      */
     public List<V> values() {
+        List<V> ls = new ArrayList<>();
+        for (int i = 0; i < table.length; i++) {
+            if (table[i] != null && !table[i].isRemoved()) {
+                ls.add(table[i].getValue());
+            }
+        }
 
+        return ls;
     }
 
     /**
@@ -186,7 +298,17 @@ public class QuadraticProbingHashMap<K, V> {
      * number of items in the hash map
      */
     public void resizeBackingTable(int length) {
+        if (length < size) {
+            throw new IllegalArgumentException("length is less than the number of items in the hash map");
+        }
+        QuadraticProbingMapEntry<K, V>[] temp = (QuadraticProbingMapEntry<K, V>[]) new QuadraticProbingMapEntry[length];
+        for (var d : table) {
+            if (d != null && !d.isRemoved()) {
+                quadProbing(d.getKey(), d.getValue(), temp);
+            }
+        }
 
+        table = temp;
     }
 
     /**
@@ -198,7 +320,8 @@ public class QuadraticProbingHashMap<K, V> {
      * Must be O(1).
      */
     public void clear() {
-
+        table = (QuadraticProbingMapEntry<K, V>[]) new QuadraticProbingMapEntry[INITIAL_CAPACITY];
+        size = 0;
     }
 
     /**
